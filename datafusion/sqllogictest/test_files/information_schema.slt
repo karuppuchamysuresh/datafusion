@@ -802,7 +802,7 @@ datafusion public date_trunc datafusion public date_trunc FUNCTION true String S
 datafusion public date_trunc datafusion public date_trunc FUNCTION true Time(ns) SCALAR Truncates a timestamp or time value to a specified precision. date_trunc(precision, expression)
 datafusion public date_trunc datafusion public date_trunc FUNCTION true Timestamp(ns) SCALAR Truncates a timestamp or time value to a specified precision. date_trunc(precision, expression)
 datafusion public date_trunc datafusion public date_trunc FUNCTION true Timestamp(ns, "+TZ") SCALAR Truncates a timestamp or time value to a specified precision. date_trunc(precision, expression)
-datafusion public rank datafusion public rank FUNCTION true NULL WINDOW Returns the rank of the current row within its partition, allowing gaps between ranks. This function provides a ranking similar to `row_number`, but skips ranks for identical values. rank()
+datafusion public rank datafusion public rank FUNCTION true UInt64 WINDOW Returns the rank of the current row within its partition, allowing gaps between ranks. This function provides a ranking similar to `row_number`, but skips ranks for identical values. rank()
 datafusion public string_agg datafusion public string_agg FUNCTION true String AGGREGATE Concatenates the values of string expressions and places separator values between them. If ordering is required, strings are concatenated in the specified order. This aggregation function can only mix DISTINCT and ORDER BY if the ordering expression is exactly the same as the first argument expression. string_agg([DISTINCT] expression, delimiter [ORDER BY expression])
 
 query B
@@ -817,30 +817,30 @@ false
 query TTT
 select routine_name, data_type, function_type from information_schema.routines where routine_name = 'row_number';
 ----
-row_number Int64 WINDOW
+row_number UInt64 WINDOW
 
 query TTT
 select routine_name, data_type, function_type from information_schema.routines where routine_name = 'rank';
 ----
-rank Int64 WINDOW
+rank UInt64 WINDOW
 
 query TTT
 select routine_name, data_type, function_type from information_schema.routines where routine_name = 'dense_rank';
 ----
-dense_rank Int64 WINDOW
+dense_rank UInt64 WINDOW
 
 query TTT
 select routine_name, data_type, function_type from information_schema.routines where routine_name = 'lag';
 ----
-lag Null WINDOW
+lag NULL WINDOW
 
 query TTT
 select routine_name, data_type, function_type from information_schema.routines where routine_name = 'lead';
 ----
-lead Null WINDOW
+lead NULL WINDOW
 
 # Test that window functions return types match their actual behavior
-# row_number, rank, dense_rank all return Int64
+# row_number, rank, dense_rank all return UInt64
 # lag and lead return types depend on their input (shown as Null in generic signature)
 query TTTB
 select routine_name, data_type, function_type, is_deterministic
@@ -849,9 +849,9 @@ where function_type = 'WINDOW'
   and (routine_name = 'row_number' OR routine_name = 'rank' OR routine_name = 'dense_rank')
 order by routine_name;
 ----
-dense_rank Int64 WINDOW true
-rank Int64 WINDOW true
-row_number Int64 WINDOW true
+dense_rank UInt64 WINDOW true
+rank UInt64 WINDOW true
+row_number UInt64 WINDOW true
 
 # test every function type are included in the result
 query TTTITTTTBI
@@ -872,6 +872,7 @@ datafusion public date_trunc 1 OUT NULL Timestamp(ns) NULL false 3
 datafusion public date_trunc 1 IN precision String NULL false 4
 datafusion public date_trunc 2 IN expression Timestamp(ns, "+TZ") NULL false 4
 datafusion public date_trunc 1 OUT NULL Timestamp(ns, "+TZ") NULL false 4
+datafusion public rank 1 OUT NULL UInt64 NULL false 0
 datafusion public string_agg 2 IN delimiter Null NULL false 0
 datafusion public string_agg 1 IN expression String NULL false 0
 datafusion public string_agg 1 OUT NULL String NULL false 0

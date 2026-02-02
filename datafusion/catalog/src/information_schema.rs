@@ -36,6 +36,7 @@ use datafusion_execution::TaskContext;
 use datafusion_execution::runtime_env::RuntimeEnv;
 use datafusion_expr::{AggregateUDF, ScalarUDF, Signature, TypeSignature, WindowUDF};
 use datafusion_expr::{TableType, Volatility};
+use datafusion_functions_window_common::field::WindowUDFFieldArgs;
 use datafusion_physical_plan::SendableRecordBatchStream;
 use datafusion_physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion_physical_plan::streaming::PartitionStream;
@@ -468,17 +469,38 @@ fn get_udwf_args_and_return_types(
     let signature = udwf.signature();
     let arg_types = signature.type_signature.get_example_types();
     if arg_types.is_empty() {
-        Ok(vec![(vec![], None)].into_iter().collect::<BTreeSet<_>>())
+        // Check if this is a nullary function (no arguments)
+        // For nullary functions, we can get the return type by calling field() with empty args
+        // For other signatures that return empty (like Any, VariadicAny), we return None
+        let return_type = if matches!(signature.type_signature, TypeSignature::Nullary) {
+            let field_args = WindowUDFFieldArgs::new(&[], "");
+            udwf.field(field_args)
+                .map(|f| remove_native_type_prefix(&NativeType::from(f.data_type().clone())))
+                .ok()
+        } else {
+            None
+        };
+        Ok(vec![(vec![], return_type)].into_iter().collect::<BTreeSet<_>>())
     } else {
         Ok(arg_types
             .into_iter()
             .map(|arg_types| {
-                // only handle the function which implemented [`ScalarUDFImpl::return_type`] method
+                // Create field args from the arg types and get the return type
+                let input_fields: Vec<_> = arg_types
+                    .iter()
+                    .enumerate()
+                    .map(|(i, dt)| Field::new(format!("arg{i}"), dt.clone(), true).into())
+                    .collect();
+                let field_args = WindowUDFFieldArgs::new(&input_fields, "");
+                let return_type = udwf
+                    .field(field_args)
+                    .map(|f| remove_native_type_prefix(&NativeType::from(f.data_type().clone())))
+                    .ok();
                 let arg_types = arg_types
                     .into_iter()
                     .map(|t| remove_native_type_prefix(&NativeType::from(t)))
                     .collect::<Vec<_>>();
-                (arg_types, None)
+                (arg_types, return_type)
             })
             .collect::<BTreeSet<_>>())
     }

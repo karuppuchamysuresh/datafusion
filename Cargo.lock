@@ -1819,6 +1819,7 @@ dependencies = [
  "datafusion-datasource",
  "datafusion-execution",
  "datafusion-expr",
+ "datafusion-functions-window-common",
  "datafusion-physical-expr",
  "datafusion-physical-plan",
  "datafusion-session",
